@@ -1,7 +1,7 @@
 # chessie
 A human-like chess engine that is hopefully around 1500 elo
 
-# Brainstorming
+## Brainstorming
 
 Scrape time data with chess.com api
 Analyze time distribution data
