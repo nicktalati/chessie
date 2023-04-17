@@ -7,32 +7,39 @@ import time
 import sys
 
 
-# Board size
-WIDTH = HEIGHT = 400
+WIDTH = HEIGHT = 500
+PIECE_SIZE = WIDTH // 8 
+LIGHT = (238, 238, 210)
+DARK = (118, 150, 86)
 
-# Chess piece size
-PIECE_SIZE = WIDTH // 8
+def get_piece_name(piece):
+    return f"{chess.COLOR_NAMES[piece.color]}_{chess.piece_name(piece.piece_type)}"
 
-# Load chess piece images
 def load_images():
     pieces = {}
     for piece in chess.PIECE_TYPES:
         for color in chess.COLORS:
-            piece_name = f"{chess.COLOR_NAMES[color]}_{chess.piece_name(piece)}"
+            piece_name = get_piece_name(chess.Piece(piece, color))
             image = pygame.image.load(f"assets/{piece_name}.png")
             image = pygame.transform.scale(image, (PIECE_SIZE, PIECE_SIZE))
             pieces[piece_name] = image
     return pieces
 
+def draw_square_and_piece(screen, board, images, rank, file):
+    piece = board.piece_at(chess.square(file, rank))
+    color = DARK if (file + rank) % 2 == 0 else LIGHT
+    square_x = file * PIECE_SIZE
+    square_y = (7 - rank) * PIECE_SIZE
+    square = pygame.Rect(square_x, square_y, PIECE_SIZE, PIECE_SIZE)
+    pygame.draw.rect(screen, color, square)
+    if piece:
+        piece_name = get_piece_name(piece)
+        screen.blit(images[piece_name], square)
+
 def draw_board(screen, board, images):
     for rank in range(8):
         for file in range(8):
-            piece = board.piece_at(chess.square(file, rank))
-            color = (238, 238, 210) if (file + rank) % 2 == 0 else (118, 150, 86)
-            pygame.draw.rect(screen, color, pygame.Rect(file * PIECE_SIZE, (7 - rank) * PIECE_SIZE, PIECE_SIZE, PIECE_SIZE))
-            if piece:
-                piece_name = f"{chess.COLOR_NAMES[piece.color]}_{chess.piece_name(piece.piece_type)}"
-                screen.blit(images[piece_name], pygame.Rect(file * PIECE_SIZE, (7 - rank) * PIECE_SIZE, PIECE_SIZE, PIECE_SIZE))
+            draw_square_and_piece(screen, board, images, rank, file)
 
 def random_move(board):
     moves = list(board.legal_moves)
@@ -60,8 +67,12 @@ def get_user_promotion_piece(screen, images, color):
 
         # Draw promotion options
         for i, piece_type in enumerate(['q', 'r', 'b', 'n']):
-            piece_name = f"{chess.COLOR_NAMES[color]}_{chess.piece_name(chess.Piece.from_symbol(piece_type).piece_type)}"
-            screen.blit(images[piece_name], pygame.Rect(PROMOTION_X + i * (PROMOTION_WIDTH // 4), PROMOTION_Y, PIECE_SIZE, PIECE_SIZE))
+            piece = chess.Piece.from_symbol(piece_type)
+            piece.color = color
+            piece_name = get_piece_name(piece)
+            location = pygame.Rect(PROMOTION_X + i * (PROMOTION_WIDTH // 4),
+                                   PROMOTION_Y, PIECE_SIZE, PIECE_SIZE)
+            screen.blit(images[piece_name], location)
 
         pygame.display.flip()
 
@@ -69,15 +80,17 @@ def render_game_clock(screen, font, white_time, black_time):
     white_text = font.render(f"White: {int(white_time // 60)}:{int(white_time % 60):02d}", True, (0, 0, 0))
     black_text = font.render(f"Black: {int(black_time // 60)}:{int(black_time % 60):02d}", True, (0, 0, 0))
 
-    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, 10))
-    screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, HEIGHT - 30))
+    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT - 30))
+    screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, 10))
 
 def main():
     AI_MOVE_EVENT = pygame.USEREVENT + 1
+
     pygame.init()
     pygame.font.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Chess")
+
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
     initial_time = 5 * 60  # 5 minutes per player
     white_time = initial_time
@@ -86,7 +99,6 @@ def main():
     font = pygame.font.Font(None, 36)
 
     images = load_images()
-    clock = pygame.time.Clock()
     board = chess.Board()
     dragging = False
     selected_piece = None
