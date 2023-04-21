@@ -1,6 +1,7 @@
 # User Added
 new_games.csv
 new_games_cond.csv
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
