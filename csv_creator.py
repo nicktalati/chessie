@@ -86,9 +86,10 @@ def process_csv(input_file, output_file, model):
 
             writer.writerow(output_row)
 
-input_csv = 'new_games_cond.csv'
-output_csv = 'training_data2.csv'
-# input_csv = 'input.csv'
-# output_csv = 'output.csv'
-model = tf.keras.models.load_model("complexity_model/complexity_model.h5")
-process_csv(input_csv, output_csv, model)
+if __name__ == '__main__':
+    input_csv = 'new_games_cond.csv'
+    output_csv = 'training_data2.csv'
+    # input_csv = 'input.csv'
+    # output_csv = 'output.csv'
+    model = tf.keras.models.load_model("complexity_model/complexity_model.h5")
+    process_csv(input_csv, output_csv, model)

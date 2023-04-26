@@ -13,6 +13,20 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 
 
+def log_normal_loss(y_true, y_pred):
+    return -y_pred.log_prob(y_true)
+
+def load_bayesian_nn_time_model(model_path):
+    custom_objects = {
+        'DistributionLambda': tfpl.DistributionLambda,
+        'LogNormal': tfd.LogNormal,
+        'log_normal_loss': log_normal_loss
+    }
+    
+    loaded_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+    return loaded_model
+
+
 def get_nn_time_model(df, epochs=5, training_split=0.8):
     xs = df[df.columns[:-1]]
     ys = df['move_time']
@@ -40,6 +54,7 @@ def get_nn_time_model(df, epochs=5, training_split=0.8):
 
 def get_bayesian_nn_time_model(df, epochs=5, training_split=0.8):
     xs = df[df.columns[:-1]]
+    print(xs)
     ys = df['move_time']
     train_xs = xs[:int(len(xs) * training_split)]
     train_ys = ys[:int(len(ys) * training_split)]
@@ -61,7 +76,7 @@ def get_bayesian_nn_time_model(df, epochs=5, training_split=0.8):
     adam = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
     bayesian_nn_time_model.compile(optimizer=adam,
-                                   loss=lambda y, rv_y: -rv_y.log_prob(y))
+                                   loss=log_normal_loss)
     
     bayesian_nn_time_model.fit(train_xs,
                                train_ys,
@@ -210,18 +225,20 @@ if __name__ == '__main__':
 
     means = df[df.columns[:-1]].mean()
     stds = df[df.columns[:-1]].std()
+    print(means, stds)
     df[df.columns[:-1]] = (df[df.columns[:-1]] - means) / stds
     df['move_time'] += 0.05
-    print(df['move_time'].min())
 
     # nn_time_model = get_nn_time_model(df, epochs=10, training_split=0.8)
     # plot_actual_vs_predicted(nn_time_model, df)
 
     bayesian_nn_time_model = get_bayesian_nn_time_model(df, epochs=10, training_split=0.8)
     tf.keras.models.save_model(bayesian_nn_time_model, 'bayesian_nn_time_model.h5')
+    # bayesian_nn_time_model = load_bayesian_nn_time_model('bayesian_nn_time_model.h5')
+    # tf.keras.models.save_model(bayesian_nn_time_model, 'bayesian_nn_time_model.h5')
 
-    # plot_side_by_side(bayesian_nn_time_model, df, means, stds)
-    # plot_with_color_scale(bayesian_nn_time_model, df, means, stds)
+    plot_side_by_side(bayesian_nn_time_model, df, means, stds)
+    plot_with_color_scale(bayesian_nn_time_model, df, means, stds)
 
     # plot_actual_vs_predicted(bayesian_nn_time_model, df, means, stds)
 

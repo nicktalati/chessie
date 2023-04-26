@@ -1,16 +1,40 @@
 import chess
+import chess.engine
 import chess.svg
 import pygame
 import io
 import random
 import time
 import sys
+import tensorflow_probability as tfp
+import tensorflow as tf
+from csv_creator import material_count
+from time_models import load_bayesian_nn_time_model
+from complexity_model import get_complexity_scores
+
+OFFSET_Y = 120
+
+
+stockfish_path = "/opt/homebrew/Cellar/stockfish/15.1/bin/stockfish"
+engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
+engine.configure({"Skill Level": 5})
+
 
 
 WIDTH = HEIGHT = 500
 PIECE_SIZE = WIDTH // 8 
 LIGHT = (238, 238, 210)
 DARK = (118, 150, 86)
+
+def get_xs(model, board, color):
+    white_elo = board.uci_variant().split('+')[1]
+
+
+
+def get_time(model, board, color):
+    xs = get_xs(board, color)
+    ys = model.predict(xs)
+    return ys[0][0]
 
 def get_piece_name(piece):
     return f"{chess.COLOR_NAMES[piece.color]}_{chess.piece_name(piece.piece_type)}"
@@ -29,7 +53,7 @@ def draw_square_and_piece(screen, board, images, rank, file):
     piece = board.piece_at(chess.square(file, rank))
     color = DARK if (file + rank) % 2 == 0 else LIGHT
     square_x = file * PIECE_SIZE
-    square_y = (7 - rank) * PIECE_SIZE
+    square_y = (7 - rank) * PIECE_SIZE + OFFSET_Y / 2
     square = pygame.Rect(square_x, square_y, PIECE_SIZE, PIECE_SIZE)
     pygame.draw.rect(screen, color, square)
     if piece:
@@ -77,22 +101,24 @@ def get_user_promotion_piece(screen, images, color):
         pygame.display.flip()
 
 def render_game_clock(screen, font, white_time, black_time):
-    white_text = font.render(f"White: {int(white_time // 60)}:{int(white_time % 60):02d}", True, (0, 0, 0))
-    black_text = font.render(f"Black: {int(black_time // 60)}:{int(black_time % 60):02d}", True, (0, 0, 0))
+    white_text = font.render(f"White: {int(white_time // 60)}:{int(white_time % 60):02d}", True, (255, 255, 255))
+    black_text = font.render(f"Black: {int(black_time // 60)}:{int(black_time % 60):02d}", True, (255, 255, 255))
 
-    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT - 30))
+    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT + OFFSET_Y / 2))
     screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, 10))
 
 def main():
     AI_MOVE_EVENT = pygame.USEREVENT + 1
+    complexity_model = tf.keras.models.load_model('complexity_model/complexity_model.h5')
+    time_model = load_bayesian_nn_time_model('bayesian_nn_time_model.h5')
 
     pygame.init()
     pygame.font.init()
     pygame.display.set_caption("Chess")
 
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((WIDTH, HEIGHT + OFFSET_Y))
 
-    initial_time = 5 * 60  # 5 minutes per player
+    initial_time = 3 * 60  # 5 minutes per player
     white_time = initial_time
     black_time = initial_time
     clock = pygame.time.Clock()
@@ -106,6 +132,7 @@ def main():
     delta_x, delta_y = 0, 0
 
     running = True
+    ai_move_requested = False
     while running:
         clock.tick(60)  # Limit the frame rate to 60 FPS
 
@@ -119,13 +146,15 @@ def main():
                 running = False
 
             elif event.type == AI_MOVE_EVENT:
-                ai_move = random_move(board)
-                print(f"AI move: {ai_move}")
-                board.push(ai_move)
-                if board.is_game_over():
-                    print("Game Over")
-                    print(board.result())
-                pygame.time.set_timer(AI_MOVE_EVENT, 0)  # Stop the AI_MOVE_EVENT timer
+                if ai_move_requested:
+                    ai_move = engine.play(board, chess.engine.Limit(time=0.1)).move
+                    print(f"AI move: {ai_move}")
+                    board.push(ai_move)
+                    if board.is_game_over():
+                        print("Game Over")
+                        print(board.result())
+                    ai_move_requested = False
+                    pygame.time.set_timer(AI_MOVE_EVENT, 0)  # Stop the AI_MOVE_EVENT timer
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
@@ -161,8 +190,30 @@ def main():
                             print("Game Over")
                             print(board.result())
                         else:
-                            print(board.fen())
-                            pygame.time.set_timer(AI_MOVE_EVENT, 1000)  # Schedule the AI_MOVE_EVENT in 1000 ms (1 second)
+                            ai_move_requested = True
+                            fen = board.fen()
+                            white_elo = (1500 - 1506.20) / 52.25
+                            black_elo = (1500 - 1503.28) / 53.13
+                            white_time_left = (white_time - 119.43) / 53.13
+                            black_time_left = (black_time - 119.24) / 53.64
+                            white_material, black_material = material_count(fen)
+                            white_material = (white_material - 27.06) / 11.22
+                            black_material = (black_material - 27.15) / 11.12
+                            expected_loss = get_complexity_scores(fen, 1500, complexity_model)['cp_loss']
+                            blunder_chance = get_complexity_scores(fen, 1500, complexity_model)['blunder_chance']
+                            expected_loss = (expected_loss - 30.78) / 19.51
+                            blunder_chance = (blunder_chance - 0.0450) / 0.088
+                            time = time_model.predict([[white_elo,
+                                                        black_elo,
+                                                        white_time_left,
+                                                        black_time_left,
+                                                        white_material,
+                                                        black_material,
+                                                        expected_loss,
+                                                        blunder_chance]])
+                            time = time[0][0]
+                            print(time)
+                            pygame.time.set_timer(AI_MOVE_EVENT, int(1000 * time))  # Schedule the AI_MOVE_EVENT in 1000 ms (1 second)
 
                     dragging = False
                     selected_piece = None
