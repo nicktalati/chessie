@@ -39,11 +39,15 @@ conda env create --file=requirements.yml
 ```python
 stockfish_path = "/path/to/stockfish"
 ```
-
-5. Run the `main.py` script to start playing against the bot:
-
+e.g., 
+```python
+stockfish_path = "/opt/homebrew/Cellar/stockfish/15.1/bin/stockfish"
 ```
-python main.py
+
+5. Run the `play.py` script to start playing against the bot:
+
+```python
+python play.py
 ```
 
 ## License

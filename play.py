@@ -15,7 +15,7 @@ from complexity_model import get_complexity_scores
 OFFSET_Y = 120
 
 
-stockfish_path = "/path/to/stockfish"
+stockfish_path = "/opt/homebrew/Cellar/stockfish/15.1/bin/stockfish"
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 engine.configure({"Skill Level": 5})
 
