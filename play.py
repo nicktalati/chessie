@@ -161,6 +161,7 @@ def main():
                             print("Game Over")
                             print(board.result())
                         else:
+                            print(board.fen())
                             pygame.time.set_timer(AI_MOVE_EVENT, 1000)  # Schedule the AI_MOVE_EVENT in 1000 ms (1 second)
 
                     dragging = False
