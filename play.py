@@ -49,21 +49,26 @@ def load_images():
             pieces[piece_name] = image
     return pieces
 
-def draw_square_and_piece(screen, board, images, rank, file):
-    piece = board.piece_at(chess.square(file, rank))
+def draw_square_and_piece(screen, board, images, rank, file, selected_square=None):
+    square = chess.square(file, rank)
+    if square == selected_square:
+        piece = None
+    else:
+        piece = board.piece_at(square)
+
     color = DARK if (file + rank) % 2 == 0 else LIGHT
     square_x = file * PIECE_SIZE
     square_y = (7 - rank) * PIECE_SIZE + OFFSET_Y / 2
-    square = pygame.Rect(square_x, square_y, PIECE_SIZE, PIECE_SIZE)
-    pygame.draw.rect(screen, color, square)
+    square_rect = pygame.Rect(square_x, square_y, PIECE_SIZE, PIECE_SIZE)
+    pygame.draw.rect(screen, color, square_rect)
     if piece:
         piece_name = get_piece_name(piece)
-        screen.blit(images[piece_name], square)
+        screen.blit(images[piece_name], square_rect)
 
-def draw_board(screen, board, images):
+def draw_board(screen, board, images, selected_square=None):
     for rank in range(8):
         for file in range(8):
-            draw_square_and_piece(screen, board, images, rank, file)
+            draw_square_and_piece(screen, board, images, rank, file, selected_square)
 
 def random_move(board):
     moves = list(board.legal_moves)
@@ -101,11 +106,17 @@ def get_user_promotion_piece(screen, images, color):
         pygame.display.flip()
 
 def render_game_clock(screen, font, white_time, black_time):
-    white_text = font.render(f"White: {int(white_time // 60)}:{int(white_time % 60):02d}", True, (255, 255, 255))
-    black_text = font.render(f"Black: {int(black_time // 60)}:{int(black_time % 60):02d}", True, (255, 255, 255))
+    clock_background_color = (0, 0, 0)
+    clock_background_rect_white = pygame.Rect(0, HEIGHT + OFFSET_Y / 2 + 10, WIDTH, OFFSET_Y / 2)
+    clock_background_rect_black = pygame.Rect(0, 0, WIDTH, OFFSET_Y / 2)
+    pygame.draw.rect(screen, clock_background_color, clock_background_rect_white)
+    pygame.draw.rect(screen, clock_background_color, clock_background_rect_black)
 
-    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT + OFFSET_Y / 2))
-    screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, 10))
+    white_text = font.render(f"White: {int(white_time // 1000 // 60)}:{int((white_time // 1000) % 60):02d}", True, (255, 255, 255))
+    black_text = font.render(f"Black: {int(black_time // 1000 // 60)}:{int((black_time // 1000) % 60):02d}", True, (255, 255, 255))
+
+    screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT + OFFSET_Y / 2 + 20))
+    screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, 20))
 
 def main():
     AI_MOVE_EVENT = pygame.USEREVENT + 1
@@ -118,11 +129,14 @@ def main():
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT + OFFSET_Y))
 
-    initial_time = 3 * 60  # 5 minutes per player
+    initial_time = 3 * 60 * 1000  # 3 minutes per player in milliseconds
     white_time = initial_time
     black_time = initial_time
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
+
+    start_time = pygame.time.get_ticks()  # Store the start time
+    last_update_time = start_time
 
     images = load_images()
     board = chess.Board()
@@ -136,10 +150,15 @@ def main():
     while running:
         clock.tick(60)  # Limit the frame rate to 60 FPS
 
+        current_time = pygame.time.get_ticks()
+        elapsed_time = current_time - last_update_time  # Calculate elapsed time since the last update
+
         if board.turn == chess.WHITE:
-            white_time -= clock.get_time() / 1000
+            white_time -= elapsed_time
         else:
-            black_time -= clock.get_time() / 1000
+            black_time -= elapsed_time
+
+        last_update_time = current_time  # Update the last_update_time for the next loop
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -159,6 +178,7 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     x, y = event.pos
+                    y -= OFFSET_Y // 2
                     file, rank = x // PIECE_SIZE, 7 - y // PIECE_SIZE
                     square = chess.square(file, rank)
                     piece = board.piece_at(square)
@@ -171,6 +191,7 @@ def main():
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1 and dragging:
                     x, y = event.pos
+                    y -= OFFSET_Y // 2
                     file, rank = x // PIECE_SIZE, 7 - y // PIECE_SIZE
                     target_square = chess.square(file, rank)
 
@@ -194,8 +215,8 @@ def main():
                             fen = board.fen()
                             white_elo = (1500 - 1506.20) / 52.25
                             black_elo = (1500 - 1503.28) / 53.13
-                            white_time_left = (white_time - 119.43) / 53.13
-                            black_time_left = (black_time - 119.24) / 53.64
+                            white_time_left = (white_time / 1000 - 119.43) / 53.13
+                            black_time_left = (black_time / 1000 - 119.24) / 53.64
                             white_material, black_material = material_count(fen)
                             white_material = (white_material - 27.06) / 11.22
                             black_material = (black_material - 27.15) / 11.12
@@ -220,7 +241,7 @@ def main():
                     selected_square = None
                     delta_x, delta_y = 0, 0
 
-        draw_board(screen, board, images)
+        draw_board(screen, board, images, selected_square)
 
         if dragging:
             x, y = pygame.mouse.get_pos()
