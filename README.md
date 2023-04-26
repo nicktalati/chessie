@@ -1,15 +1,51 @@
-# chessie
-A human-like chess engine that is hopefully around 1500 elo
+# Chessie
 
-## Brainstorming
+This project aims to create a chess bot that not only plays moves at a human level, but also mimics the time usage of a human player. This makes the bot more suitable for practicing time management skills during a chess game. The bot is designed to have an Elo rating of around 1500 and it adjusts its move time based on various factors such as players' Elo ratings, time remaining on the clock, material count, and move complexities.
 
-Scrape time data with chess.com api
-Analyze time distribution data
-Estimate time usage distribution over
-  - white's time left
-  - black's time left
-  - white's material
-  - black's material
+## Features
 
-Time usage distribution should be across discreet variables (split time into buckets) 
+- Chess bot with an Elo rating of around 1500
+- Plays three-minute blitz games
+- Mimics human time usage based on various factors
+- Utilizes a custom model for move complexity and time management
+- Provides a more human-like experience when practicing against the bot
 
+## Installation
+
+1. Clone the repository:
+
+```
+git clone https://github.com/nicktalati/chessie
+```
+
+2. Navigate to the project folder:
+
+```
+cd chessie
+```
+
+3. Install the required dependencies:
+
+```
+pip install -r requirements.txt
+```
+or
+```
+conda env create --file=requirements.yml
+```
+
+4. Download and install the [Stockfish chess engine](https://stockfishchess.org/download/) for your platform. Make sure to add the path to the `stockfish_path` variable in the `main.py` file:
+
+```python
+stockfish_path = "/path/to/stockfish"
+```
+
+5. Run the `main.py` script to start playing against the bot:
+
+```
+python main.py
+```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

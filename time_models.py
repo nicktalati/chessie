@@ -216,6 +216,7 @@ def plot_with_color_scale(model, df, means, stds):
         plt.show()
 
 
+
 if __name__ == '__main__':
     csv_path = 'training_data2.csv'
     df = pd.read_csv(csv_path)

@@ -15,7 +15,7 @@ from complexity_model import get_complexity_scores
 OFFSET_Y = 120
 
 
-stockfish_path = "/opt/homebrew/Cellar/stockfish/15.1/bin/stockfish"
+stockfish_path = "/path/to/stockfish"
 engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
 engine.configure({"Skill Level": 5})
 
@@ -25,16 +25,6 @@ WIDTH = HEIGHT = 500
 PIECE_SIZE = WIDTH // 8 
 LIGHT = (238, 238, 210)
 DARK = (118, 150, 86)
-
-def get_xs(model, board, color):
-    white_elo = board.uci_variant().split('+')[1]
-
-
-
-def get_time(model, board, color):
-    xs = get_xs(board, color)
-    ys = model.predict(xs)
-    return ys[0][0]
 
 def get_piece_name(piece):
     return f"{chess.COLOR_NAMES[piece.color]}_{chess.piece_name(piece.piece_type)}"
