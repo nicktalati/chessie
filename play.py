@@ -11,6 +11,8 @@ import tensorflow as tf
 from csv_creator import material_count
 from time_models import load_bayesian_nn_time_model
 from complexity_model import get_complexity_scores
+import sys
+import os
 
 OFFSET_Y = 120
 
@@ -108,6 +110,15 @@ def render_game_clock(screen, font, white_time, black_time):
     screen.blit(white_text, (WIDTH // 2 - white_text.get_width() // 2, HEIGHT + OFFSET_Y / 2 + 20))
     screen.blit(black_text, (WIDTH // 2 - black_text.get_width() // 2, 20))
 
+def game_over(board, white_time, black_time):
+    if white_time <= 0:
+        return "white_time"
+    if black_time <= 0:
+        return "black_time"
+    if board.is_game_over():
+        return "checkmate"
+    return None
+
 def main():
     AI_MOVE_EVENT = pygame.USEREVENT + 1
     complexity_model = tf.keras.models.load_model('complexity_model/complexity_model.h5')
@@ -149,19 +160,30 @@ def main():
             black_time -= elapsed_time
 
         last_update_time = current_time  # Update the last_update_time for the next loop
+        game_over_reason = game_over(board, white_time, black_time)
+        if game_over_reason:
+            print("Game Over")
+            if game_over_reason == "white_time":
+                print("0-1 (White ran out of time)")
+            elif game_over_reason == "black_time":
+                print("1-0 (Black ran out of time)")
+            else:
+                print(board.result())
+            running = False
+            os._exit(0)
+            
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                os._exit(0)
 
             elif event.type == AI_MOVE_EVENT:
                 if ai_move_requested:
                     ai_move = engine.play(board, chess.engine.Limit(time=0.1)).move
                     print(f"AI move: {ai_move}")
                     board.push(ai_move)
-                    if board.is_game_over():
-                        print("Game Over")
-                        print(board.result())
+
                     ai_move_requested = False
                     pygame.time.set_timer(AI_MOVE_EVENT, 0)  # Stop the AI_MOVE_EVENT timer
 
@@ -197,34 +219,29 @@ def main():
 
                     if move in board.legal_moves:
                         board.push(move)
-                        if board.is_game_over():
-                            print("Game Over")
-                            print(board.result())
-                        else:
-                            ai_move_requested = True
-                            fen = board.fen()
-                            white_elo = (1500 - 1506.20) / 52.25
-                            black_elo = (1500 - 1503.28) / 53.13
-                            white_time_left = (white_time / 1000 - 119.43) / 53.13
-                            black_time_left = (black_time / 1000 - 119.24) / 53.64
-                            white_material, black_material = material_count(fen)
-                            white_material = (white_material - 27.06) / 11.22
-                            black_material = (black_material - 27.15) / 11.12
-                            expected_loss = get_complexity_scores(fen, 1500, complexity_model)['cp_loss']
-                            blunder_chance = get_complexity_scores(fen, 1500, complexity_model)['blunder_chance']
-                            expected_loss = (expected_loss - 30.78) / 19.51
-                            blunder_chance = (blunder_chance - 0.0450) / 0.088
-                            time = time_model.predict([[white_elo,
-                                                        black_elo,
-                                                        white_time_left,
-                                                        black_time_left,
-                                                        white_material,
-                                                        black_material,
-                                                        expected_loss,
-                                                        blunder_chance]])
-                            time = time[0][0]
-                            print(time)
-                            pygame.time.set_timer(AI_MOVE_EVENT, int(1000 * time))  # Schedule the AI_MOVE_EVENT in 1000 ms (1 second)
+                        ai_move_requested = True
+                        fen = board.fen()
+                        white_elo = (1500 - 1506.20) / 52.25
+                        black_elo = (1500 - 1503.28) / 53.13
+                        white_time_left = (white_time / 1000 - 119.43) / 53.13
+                        black_time_left = (black_time / 1000 - 119.24) / 53.64
+                        white_material, black_material = material_count(fen)
+                        white_material = (white_material - 27.06) / 11.22
+                        black_material = (black_material - 27.15) / 11.12
+                        expected_loss = get_complexity_scores(fen, 1500, complexity_model)['cp_loss']
+                        blunder_chance = get_complexity_scores(fen, 1500, complexity_model)['blunder_chance']
+                        expected_loss = (expected_loss - 30.78) / 19.51
+                        blunder_chance = (blunder_chance - 0.0450) / 0.088
+                        time = time_model.predict([[white_elo,
+                                                    black_elo,
+                                                    white_time_left,
+                                                    black_time_left,
+                                                    white_material,
+                                                    black_material,
+                                                    expected_loss,
+                                                    blunder_chance]])
+                        time = time[0][0]
+                        pygame.time.set_timer(AI_MOVE_EVENT, int(1000 * time))  # Schedule the AI_MOVE_EVENT in 1000 ms (1 second)
 
                     dragging = False
                     selected_piece = None
