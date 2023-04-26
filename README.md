@@ -34,7 +34,7 @@ or
 conda env create --file=requirements.yml
 ```
 
-4. Download and install the [Stockfish chess engine](https://stockfishchess.org/download/) for your platform. Make sure to add the path to the `stockfish_path` variable in the `main.py` file:
+4. Download and install the [Stockfish chess engine](https://stockfishchess.org/download/) for your platform. Make sure to add the path to the `stockfish_path` variable in the `play.py` file:
 
 ```python
 stockfish_path = "/path/to/stockfish"
